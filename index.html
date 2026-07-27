@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Anak Negeri - Modern Heritage Snacks. Kerenyahan asli Nusantara yang diolah dari hasil bumi terbaik Indonesia secara higienis dan otentik.">
+    <title>Anak Negeri | Kerenyahan Asli Nusantara</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- Header Navigation -->
+    <header class="site-header" id="site-header">
+        <div class="header-container">
+            <a href="#" class="brand-logo" id="brand-logo">Anak Negeri</a>
+
+            <nav class="nav-menu" id="nav-menu">
+                <a href="#koleksi" class="nav-link">Koleksi</a>
+                <a href="#cerita" class="nav-link">Cerita Kami</a>
+                <a href="#terbaik" class="nav-link">Terbaik</a>
+                <a href="#testimoni" class="nav-link">Testimoni</a>
+                <a href="#lokasi" class="nav-link">Lokasi Toko</a>
+            </nav>
+
+            <div class="header-actions">
+                <button class="icon-btn cart-toggle-btn" id="cart-toggle-btn" aria-label="Keranjang Belanja">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span class="cart-badge" id="cart-badge">0</span>
+                </button>
+                <button class="mobile-toggle" id="mobile-toggle" aria-label="Menu Navigasi">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section" id="hero">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <span class="hero-badge">
+                        <i class="fa-solid fa-sparkles"></i> Tradisi dalam Setiap Gigitan
+                    </span>
+                    <h1 class="hero-title">Kerenyahan Asli Nusantara</h1>
+                    <p class="hero-subtitle">
+                        Membawa cita rasa warisan Indonesia ke meja modern Anda melalui teknik penggorengan tradisional
+                        yang disempurnakan.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#koleksi" class="btn btn-primary" id="btn-hero-shop">Belanja Sekarang</a>
+                        <a href="#cerita" class="btn btn-outline" id="btn-hero-story">Cerita Kami</a>
+                    </div>
+                </div>
+
+                <div class="hero-image-wrapper">
+                    <div class="hero-image-card">
+                        <img src="images/hero_snack.jpg" alt="Anak Negeri Craft Snack Packaging" class="hero-img">
+                        <div class="hero-floating-badge">
+                            <i class="fa-solid fa-leaf"></i> 100% Bahan Alami
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Collection Section -->
+        <section class="collection-section section-padding" id="koleksi">
+            <div class="section-container">
+                <div class="section-header text-center" id="terbaik">
+                    <h2 class="section-title">Koleksi Kudapan Pilihan</h2>
+                    <p class="section-subtitle">Kerenyahan yang diolah dari hasil bumi terbaik Nusantara.</p>
+
+                    <!-- Filter Tabs -->
+                    <div class="filter-tabs" id="filter-tabs">
+                        <button class="tab-btn active" data-category="all">Semua</button>
+                        <button class="tab-btn" data-category="keripik">Keripik</button>
+                        <button class="tab-btn" data-category="peyek">Peyek</button>
+                        <button class="tab-btn" data-category="gurih">Gurih</button>
+                        <button class="tab-btn" data-category="manis">Manis</button>
+                    </div>
+                </div>
+
+                <div class="product-grid" id="product-grid">
+                    <!-- Product 1 -->
+                    <div class="product-card" data-category="keripik gurih" id="product-card-1">
+                        <div class="product-img-wrapper">
+                            <img src="images/keripik_ketela.jpg" alt="Keripik Ketela" class="product-img">
+                            <span class="product-tag">Favorit</span>
+                        </div>
+                        <div class="product-details">
+                            <h3 class="product-title">Keripik Ketela</h3>
+                            <p class="product-price">Rp 25.000</p>
+                            <button class="btn btn-card-add"
+                                onclick="addToCart(1, 'Keripik Ketela', 25000, 'images/keripik_ketela.jpg')">
+                                <i class="fa-solid fa-plus"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product 2 -->
+                    <div class="product-card" data-category="keripik manis" id="product-card-2">
+                        <div class="product-img-wrapper">
+                            <img src="images/keripik_pisang.jpg" alt="Keripik Pisang" class="product-img">
+                            <span class="product-tag tag-gold">Best Seller</span>
+                        </div>
+                        <div class="product-details">
+                            <h3 class="product-title">Keripik Pisang</h3>
+                            <p class="product-price">Rp 28.000</p>
+                            <button class="btn btn-card-add"
+                                onclick="addToCart(2, 'Keripik Pisang', 28000, 'images/keripik_pisang.jpg')">
+                                <i class="fa-solid fa-plus"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product 3 -->
+                    <div class="product-card" data-category="keripik gurih" id="product-card-3">
+                        <div class="product-img-wrapper">
+                            <img src="images/keripik_talas.jpg" alt="Keripik Talas" class="product-img">
+                        </div>
+                        <div class="product-details">
+                            <h3 class="product-title">Keripik Talas</h3>
+                            <p class="product-price">Rp 30.000</p>
+                            <button class="btn btn-card-add"
+                                onclick="addToCart(3, 'Keripik Talas', 30000, 'images/keripik_talas.jpg')">
+                                <i class="fa-solid fa-plus"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product 4 -->
+                    <div class="product-card" data-category="peyek gurih" id="product-card-4">
+                        <div class="product-img-wrapper">
+                            <img src="images/peyek_kacang.jpg" alt="Peyek Kacang" class="product-img">
+                        </div>
+                        <div class="product-details">
+                            <h3 class="product-title">Peyek Kacang</h3>
+                            <p class="product-price">Rp 22.000</p>
+                            <button class="btn btn-card-add"
+                                onclick="addToCart(4, 'Peyek Kacang', 22000, 'images/peyek_kacang.jpg')">
+                                <i class="fa-solid fa-plus"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product 5 -->
+                    <div class="product-card" data-category="gurih" id="product-card-5">
+                        <div class="product-img-wrapper">
+                            <img src="images/kerupuk_bawang.jpg" alt="Kerupuk Bawang" class="product-img">
+                        </div>
+                        <div class="product-details">
+                            <h3 class="product-title">Kerupuk Bawang</h3>
+                            <p class="product-price">Rp 20.000</p>
+                            <button class="btn btn-card-add"
+                                onclick="addToCart(5, 'Kerupuk Bawang', 20000, 'images/kerupuk_bawang.jpg')">
+                                <i class="fa-solid fa-plus"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modern Heritage Section -->
+        <section class="heritage-section section-padding" id="cerita">
+            <div class="section-container heritage-grid">
+                <div class="heritage-image-box">
+                    <img src="images/heritage_ingredients.jpg" alt="Bahan Hasil Bumi Nusantara"
+                        class="heritage-main-img">
+
+                    <!-- Overlapping Green Card -->
+                    <div class="heritage-overlay-card">
+                        <div class="overlay-icon">
+                            <i class="fa-solid fa-wheat-awn"></i>
+                        </div>
+                        <h4 class="overlay-title">Akar Tradisi</h4>
+                        <p class="overlay-text">
+                            Berawal dari dapur nenek, kami menjaga resep asli turun temurun selama tiga generasi.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="heritage-content">
+                    <h2 class="section-title text-left">Modern Heritage</h2>
+                    <p class="heritage-lead">
+                        Kami memadukan rahasia penggorengan tradisional dengan teknologi vacuum modern untuk
+                        menghasilkan kripik yang sehat tanpa kehilangan cita rasa aslinya.
+                    </p>
+
+                    <div class="heritage-features">
+                        <div class="feature-item">
+                            <div class="feature-icon-wrapper">
+                                <i class="fa-solid fa-sliders"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h4>Standar Masa Kini</h4>
+                                <p>Higienis tinggi dan bebas minyak berlebih untuk gaya hidup sehat.</p>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <div class="feature-icon-wrapper">
+                                <i class="fa-solid fa-handshake-angle"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h4>Pemberdayaan Lokal</h4>
+                                <p>Bekerja sama langsung dengan petani lokal untuk memastikan kualitas bahan segar.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Testimonials Section -->
+        <section class="testimonial-section section-padding" id="testimoni">
+            <div class="section-container">
+                <div class="section-header text-center">
+                    <h2 class="section-title">Apa Kata Mereka?</h2>
+                    <p class="section-subtitle">Kisah kebahagiaan di setiap gigitan.</p>
+                </div>
+
+                <div class="testimonial-grid">
+                    <!-- Testimonial 1 -->
+                    <div class="testimonial-card">
+                        <div class="testimonial-top">
+                            <div class="stars">
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <span class="quote-mark">“</span>
+                        </div>
+                        <p class="testimonial-quote">
+                            "Keripik pisangnya juara banget! Manisnya pas dan bener-bener renyah banget. Kemasannya juga
+                            premium, cocok buat oleh-oleh."
+                        </p>
+                        <div class="testimonial-user">
+                            <div class="user-avatar avatar-red">S</div>
+                            <div class="user-info">
+                                <h4>Saraswati R.</h4>
+                                <span>Ibu Rumah Tangga</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Testimonial 2 -->
+                    <div class="testimonial-card">
+                        <div class="testimonial-top">
+                            <div class="stars">
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <span class="quote-mark">“</span>
+                        </div>
+                        <p class="testimonial-quote">
+                            "Akhirnya nemu kripik talas yang nggak bervetsin. Kerenyahannya awet banget, anak-anak saya
+                            di rumah suka banget."
+                        </p>
+                        <div class="testimonial-user">
+                            <div class="user-avatar avatar-gold">A</div>
+                            <div class="user-info">
+                                <h4>Andra Pratama</h4>
+                                <span>Content Creator</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Testimonial 3 -->
+                    <div class="testimonial-card">
+                        <div class="testimonial-top">
+                            <div class="stars">
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <span class="quote-mark">“</span>
+                        </div>
+                        <p class="testimonial-quote">
+                            "Packagingnya modern tapi rasanya kangen. Aromanya otentik. Tiap kali kangen kampung halaman
+                            pasti beli ini."
+                        </p>
+                        <div class="testimonial-user">
+                            <div class="user-avatar avatar-green">M</div>
+                            <div class="user-info">
+                                <h4>Maya Siska</h4>
+                                <span>Arsitek</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Store Location Section -->
+        <section class="store-section section-padding" id="lokasi">
+            <div class="section-container">
+                <div class="section-header text-center">
+                    <h2 class="section-title">Lokasi Toko</h2>
+                    <p class="section-subtitle">Temukan gerai resmi atau mitra kami di kota terdekat.</p>
+                </div>
+
+                <div class="store-grid">
+                    <!-- Real Interactive Google Maps Embedded View -->
+                    <div class="map-container" id="map-container">
+                        <iframe
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3962.400324095235!2d110.88326435131223!3d-6.720907930649701!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e70dba22728c0e1%3A0x1caabf1dfff9f02c!2sKeripik%20Anak%20Negeri!5e0!3m2!1sid!2sid!4v1785172403187!5m2!1sid!2sid"
+                            width="100%" height="100%"
+                            style="border:0; width: 100%; height: 100%; min-height: 380px; border-radius: var(--radius-lg);"
+                            allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
+                            title="Peta Lokasi Keripik Anak Negeri">
+                        </iframe>
+                        <button class="btn btn-map-direction" onclick="openDirections();">
+                            <i class="fa-solid fa-location-arrow"></i> Petunjuk Arah
+                        </button>
+                    </div>
+
+                    <!-- Store Details Box -->
+                    <div class="store-details-card">
+                        <h3 class="store-card-title">Gerai Keripik Anak Negeri</h3>
+
+                        <ul class="store-info-list">
+                            <li>
+                                <i class="fa-solid fa-location-dot info-icon"></i>
+                                <span>Dukuh DIMORO, RT.11/RW.04, Dimoro, Lau, Kec. Dawe, Kabupaten Kudus, Jawa Tengah
+                                    59353</span>
+                            </li>
+                            <li>
+                                <i class="fa-regular fa-clock info-icon"></i>
+                                <span>Senin – Kamis & Sabtu – Minggu: 06:00 – 20:00 WIB<br><strong
+                                        style="color: var(--color-primary);">Jumat: Tutup</strong></span>
+                            </li>
+                            <li>
+                                <i class="fa-brands fa-whatsapp info-icon"></i>
+                                <a href="https://wa.me/6285701515879" target="_blank"
+                                    style="color: var(--color-text-dark); font-weight: 600;">+62 857-0151-5879</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="footer-grid">
+                <!-- Brand Info -->
+                <div class="footer-col brand-col">
+                    <h3 class="footer-brand">Anak Negeri</h3>
+                    <p class="footer-desc">
+                        Modern Heritage Snacks. Menjaga tradisi kuliner Nusantara untuk masa kini.
+                    </p>
+                </div>
+
+                <!-- Link Col 1 -->
+                <div class="footer-col">
+                    <h4>Produk</h4>
+                    <ul>
+                        <li><a href="#koleksi">Semua Kudapan</a></li>
+                        <li><a href="#">Paket Hadiah</a></li>
+                        <li><a href="#">Reseller</a></li>
+                    </ul>
+                </div>
+
+                <!-- Link Col 2 -->
+                <div class="footer-col">
+                    <h4>Bantuan</h4>
+                    <ul>
+                        <li><a href="#">Info Pengiriman</a></li>
+                        <li><a href="#">Kebijakan Privasi</a></li>
+                        <li><a href="#">Hubungi Kami</a></li>
+                    </ul>
+                </div>
+
+                <!-- Link Col 3 -->
+                <div class="footer-col">
+                    <h4>Hubungi Kami</h4>
+                    <p class="footer-contact-text">+62 857-0151-5879</p>
+                    <div class="footer-socials">
+                        <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+                        <a href="#" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+                        <a href="#" aria-label="Email"><i class="fa-regular fa-envelope"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2026 Anak Negeri. Modern Heritage Snacks. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Shopping Cart Drawer -->
+    <div class="cart-drawer-overlay" id="cart-overlay"></div>
+    <div class="cart-drawer" id="cart-drawer">
+        <div class="cart-header">
+            <h3><i class="fa-solid fa-bag-shopping"></i> Keranjang Belanja</h3>
+            <button class="close-cart-btn" id="close-cart-btn">&times;</button>
+        </div>
+
+        <div class="cart-body" id="cart-body">
+            <!-- Dynamic Cart Items injected by app.js -->
+            <div class="empty-cart-view" id="empty-cart-view">
+                <i class="fa-solid fa-basket-shopping empty-icon"></i>
+                <p>Keranjang belanja Anda masih kosong.</p>
+                <a href="#koleksi" class="btn btn-primary btn-sm" onclick="closeCart()">Mulai Belanja</a>
+            </div>
+            <div class="cart-items-list" id="cart-items-list"></div>
+        </div>
+
+        <div class="cart-footer" id="cart-footer">
+            <div class="cart-subtotal">
+                <span>Subtotal</span>
+                <span class="subtotal-price" id="cart-subtotal-price">Rp 0</span>
+            </div>
+            <p class="shipping-note">Ongkos kirim dihitung saat checkout.</p>
+            <button class="btn btn-primary btn-full checkout-btn" id="btn-checkout" onclick="handleCheckout()">
+                Lanjutkan Ke Pembayaran
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+
+</html>

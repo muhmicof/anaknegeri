@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel | Anak Negeri Modern Heritage</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-body">
+
+    <!-- Admin Header Navigation -->
+    <header class="admin-header">
+        <div class="admin-header-container">
+            <div class="admin-brand">
+                <a href="index.html" class="brand-logo">Anak Negeri</a>
+                <span class="admin-status-tag"><i class="fa-solid fa-user-gear"></i> Admin Dashboard</span>
+            </div>
+            
+            <div class="admin-nav-actions">
+                <a href="index.html" class="btn btn-outline btn-sm">
+                    <i class="fa-solid fa-store"></i> Lihat Website Toko
+                </a>
+                <button class="btn btn-outline btn-sm" id="admin-logout-btn" onclick="handleAdminLogout()" style="display: none; color: #DC2626; border-color: rgba(220, 38, 38, 0.3);">
+                    <i class="fa-solid fa-right-from-bracket"></i> Keluar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="admin-main">
+        <div class="section-container">
+            <!-- Dashboard Controls Header -->
+            <div class="admin-dashboard-card">
+                <div class="admin-card-header">
+                    <div>
+                        <h1 class="admin-page-title">Kelola Katalog Produk</h1>
+                        <p class="admin-page-subtitle">Ubah harga, ganti gambar, edit kategori, dan tambah produk baru secara real-time.</p>
+                    </div>
+
+                    <div class="admin-btn-group">
+                        <button class="btn btn-outline btn-sm" onclick="resetDefaultCatalog()">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Data Bawaan
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="openEditModal()">
+                            <i class="fa-solid fa-plus"></i> Tambah Produk Baru
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Product Data Table -->
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 90px;">Gambar</th>
+                                <th>Nama Produk</th>
+                                <th>Kategori</th>
+                                <th>Tag</th>
+                                <th>Harga</th>
+                                <th style="width: 160px; text-align: center;">Aksi Edit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-product-tbody">
+                            <!-- Dynamic Table Rows Rendered by app.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Product Edit / Add Modal -->
+    <div class="admin-modal-overlay" id="product-modal">
+        <div class="admin-modal">
+            <div class="admin-modal-header">
+                <h3 id="modal-title"><i class="fa-solid fa-pen-to-square"></i> Edit Produk</h3>
+                <button class="close-modal-btn" onclick="closeProductModal()">&times;</button>
+            </div>
+
+            <form id="product-form" onsubmit="saveProductFromForm(event)">
+                <input type="hidden" id="edit-product-id">
+
+                <div class="modal-body-grid">
+                    <div class="form-group">
+                        <label for="edit-name">Nama Produk</label>
+                        <input type="text" id="edit-name" class="form-input" required placeholder="Contoh: Keripik Ketela">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-price">Harga (Rp)</label>
+                        <input type="number" id="edit-price" class="form-input" required placeholder="Contoh: 25000">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-category">Kategori</label>
+                        <select id="edit-category" class="form-input">
+                            <option value="keripik gurih">Keripik Gurih</option>
+                            <option value="keripik manis">Keripik Manis</option>
+                            <option value="peyek gurih">Peyek Gurih</option>
+                            <option value="gurih">Kudapan Gurih</option>
+                            <option value="manis">Kudapan Manis</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-tag">Tag (Opsional)</label>
+                        <input type="text" id="edit-tag" class="form-input" placeholder="Contoh: Favorit / Best Seller">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="edit-image">URL / Path atau Unggah Foto Produk</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="edit-image" class="form-input" required placeholder="images/keripik_ketela.jpg" style="flex: 1;">
+                            <label for="edit-image-file" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; margin: 0; padding: 10px 14px;">
+                                <i class="fa-solid fa-upload"></i> Unggah Gambar
+                            </label>
+                            <input type="file" id="edit-image-file" accept="image/*" style="display: none;">
+                        </div>
+                        <small class="form-help">Pilih foto dari komputer Anda atau masukkan lokasi/URL file gambar.</small>
+                    </div>
+
+                    <div class="form-group full-width preview-container">
+                        <label>Pratinjau Gambar Produk:</label>
+                        <div class="image-preview-box">
+                            <img id="preview-image" src="images/hero_snack.jpg" alt="Preview Gambar" onerror="this.src='images/hero_snack.jpg'">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-modal-footer">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closeProductModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal Overlay -->
+    <div class="admin-login-overlay" id="admin-login-overlay">
+        <div class="admin-login-card" id="admin-login-card">
+            <div class="admin-login-icon">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 class="admin-login-title">Akses Admin Panel</h2>
+            <p class="admin-login-desc">Masukkan kata sandi untuk masuk ke kelola produk Anak Negeri.</p>
+
+            <form class="admin-login-form" onsubmit="handleAdminLogin(event)">
+                <div class="form-group">
+                    <label for="admin-password-input">Kata Sandi Admin</label>
+                    <div class="password-input-group">
+                        <input type="password" id="admin-password-input" class="form-input" placeholder="Masukkan password..." required autocomplete="current-password">
+                        <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('admin-password-input', this)" aria-label="Lihat Password">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="login-error-msg" id="login-error-msg">
+                        <i class="fa-solid fa-circle-exclamation"></i> Kata sandi yang Anda masukkan salah!
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top: 8px;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang
+                </button>
+                <a href="index.html" class="btn btn-outline btn-full" style="text-align: center; text-decoration: none; display: block; margin-top: 6px;">
+                    Kembali Ke Toko
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification System -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
