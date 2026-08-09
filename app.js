@@ -94,6 +94,14 @@ async function renderVisitorStats() {
     }
 }
 
+function initVisitorStatsAutoRefresh() {
+    if (!document.getElementById('visitor-today-count') || !document.getElementById('visitor-total-count')) return;
+
+    renderVisitorStats();
+    setInterval(renderVisitorStats, 5000);
+    window.addEventListener('focus', renderVisitorStats);
+}
+
 // --- Application Shopping State ---
 let cart = [];
 
@@ -115,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilterTabs();
     initCartDrawer();
     initScrollHeader();
-    renderVisitorStats();
+    initVisitorStatsAutoRefresh();
 
     // Render Storefront if grid container exists
     if (document.getElementById('product-grid')) {
