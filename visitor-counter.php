@@ -40,17 +40,9 @@ if ($stats['date'] !== $today) {
     $stats['today'] = 0;
 }
 
-$sessionKey = 'visitor_' . session_id();
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['visitor_counted']) || $_SESSION['visitor_counted'] !== true) {
-    $stats['today'] += 1;
-    $stats['total'] += 1;
-    $_SESSION['visitor_counted'] = true;
-    saveStats($dataFile, $stats);
-}
+$stats['today'] += 1;
+$stats['total'] += 1;
+saveStats($dataFile, $stats);
 
 echo json_encode([
     'date' => $stats['date'],
