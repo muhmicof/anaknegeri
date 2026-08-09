@@ -1,0 +1,14 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
+
+# PHP runtime generated files
+visitor-counter.json
+
+# Local environment
+.env
+.env.*

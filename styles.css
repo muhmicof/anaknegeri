@@ -1377,6 +1377,68 @@ ul {
     padding: 40px 24px 80px;
 }
 
+.visitor-stats-panel {
+    background: linear-gradient(180deg, #061b2d 0%, #071f34 100%);
+    border-radius: 16px;
+    padding: 18px 18px 10px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 24px rgba(6, 27, 45, 0.14);
+}
+
+.visitor-stats-panel h2 {
+    color: #F8FBFF;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin: 0 0 18px;
+    text-transform: uppercase;
+}
+
+.visitor-stat-item {
+    position: relative;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    padding: 16px 18px 12px 18px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.visitor-stat-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    border-radius: 8px 0 0 8px;
+}
+
+.visitor-stat-today::before {
+    background: #1f9eff;
+}
+
+.visitor-stat-total::before {
+    background: #f4c542;
+}
+
+.visitor-stat-label {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+}
+
+.visitor-stat-value {
+    color: #F5F7FA;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+}
+
 .admin-dashboard-card {
     background-color: #FFFFFF;
     border-radius: var(--radius-lg);

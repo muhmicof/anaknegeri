@@ -69,6 +69,31 @@ function saveProducts(products) {
     localStorage.setItem('anak_negeri_products', JSON.stringify(products));
 }
 
+// --- Visitor Counter System ---
+async function renderVisitorStats() {
+    const todayEl = document.getElementById('visitor-today-count');
+    const totalEl = document.getElementById('visitor-total-count');
+    if (!todayEl || !totalEl) return;
+
+    try {
+        const response = await fetch('visitor-counter.php?ts=' + Date.now(), {
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
+
+        const data = await response.json();
+        todayEl.textContent = Number(data.today || 0).toLocaleString('id-ID');
+        totalEl.textContent = Number(data.total || 0).toLocaleString('id-ID');
+    } catch (error) {
+        todayEl.textContent = '0';
+        totalEl.textContent = '0';
+    }
+}
+
 // --- Application Shopping State ---
 let cart = [];
 
@@ -90,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilterTabs();
     initCartDrawer();
     initScrollHeader();
+    renderVisitorStats();
 
     // Render Storefront if grid container exists
     if (document.getElementById('product-grid')) {
