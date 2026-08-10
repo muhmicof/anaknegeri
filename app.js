@@ -66,8 +66,16 @@ function getProducts() {
 }
 
 function saveProducts(products) {
-    localStorage.setItem('anak_negeri_products', JSON.stringify(products));
+    try {
+        localStorage.setItem('anak_negeri_products', JSON.stringify(products));
+        return true;
+    } catch (e) {
+        console.error('Gagal menyimpan ke LocalStorage:', e);
+        alert('Gagal menyimpan data produk! Ukuran penyimpanan browser (LocalStorage) penuh. Coba gunakan URL gambar atau gambar dengan resolusi lebih kecil.');
+        return false;
+    }
 }
+
 
 // --- Visitor Counter System ---
 async function renderVisitorStats() {
@@ -124,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initCartDrawer();
     initScrollHeader();
     initVisitorStatsAutoRefresh();
+    initLocalStorageSync();
 
     // Render Storefront if grid container exists
     if (document.getElementById('product-grid')) {
@@ -135,6 +144,36 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAdminAuth();
     }
 });
+
+// --- Cross-Tab Real-time Storage Sync ---
+function initLocalStorageSync() {
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'anak_negeri_products') {
+            if (document.getElementById('product-grid')) {
+                const activeTab = document.querySelector('.tab-btn.active');
+                const category = activeTab ? activeTab.getAttribute('data-category') : 'all';
+                renderStorefrontProducts(category);
+            }
+            if (document.getElementById('admin-product-tbody')) {
+                renderAdminTable();
+            }
+        }
+    });
+
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (document.getElementById('product-grid')) {
+                const activeTab = document.querySelector('.tab-btn.active');
+                const category = activeTab ? activeTab.getAttribute('data-category') : 'all';
+                renderStorefrontProducts(category);
+            }
+            if (document.getElementById('admin-product-tbody')) {
+                renderAdminTable();
+            }
+        }
+    });
+}
+
 
 // --- Scroll Header Effect ---
 function initScrollHeader() {
@@ -249,28 +288,37 @@ function closeCart() {
 }
 
 // --- Add To Cart Handler ---
-function addToCart(id) {
+// --- Add To Cart Handler ---
+function addToCart(id, name = null, price = null, image = null) {
     const products = getProducts();
     const targetProduct = products.find(p => p.id === id);
-    if (!targetProduct) return;
+
+    const itemToAdd = targetProduct || {
+        id: id,
+        name: name || 'Produk',
+        price: price || 0,
+        image: image || 'images/hero_snack.jpg'
+    };
 
     const existingItem = cart.find(item => item.id === id);
 
     if (existingItem) {
         existingItem.quantity += 1;
+        if (targetProduct) existingItem.image = targetProduct.image;
     } else {
         cart.push({
-            id: targetProduct.id,
-            name: targetProduct.name,
-            price: targetProduct.price,
-            image: targetProduct.image,
+            id: itemToAdd.id,
+            name: itemToAdd.name,
+            price: itemToAdd.price,
+            image: itemToAdd.image,
             quantity: 1
         });
     }
 
     updateCartUI();
-    showToast(`"${targetProduct.name}" ditambahkan ke keranjang!`);
+    showToast(`"${itemToAdd.name}" ditambahkan ke keranjang!`);
 }
+
 
 // --- Remove From Cart Handler ---
 function removeFromCart(id) {
@@ -301,36 +349,45 @@ function updateCartUI() {
 
     cartBadge.textContent = totalItems;
 
+    const products = getProducts();
+
     if (cart.length === 0) {
         emptyCartView.style.display = 'flex';
         cartItemsList.innerHTML = '';
         cartSubtotalPrice.textContent = 'Rp 0';
     } else {
         emptyCartView.style.display = 'none';
-        cartItemsList.innerHTML = cart.map(item => `
-            <div class="cart-item">
-                <img src="${item.image}" alt="${item.name}" class="cart-item-img" onerror="this.src='images/hero_snack.jpg'">
-                <div class="cart-item-info">
-                    <h4 class="cart-item-title">${item.name}</h4>
-                    <p class="cart-item-price">${formatRupiah(item.price)}</p>
-                    <div class="cart-item-controls">
-                        <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">
-                            <i class="fa-solid fa-minus"></i>
-                        </button>
-                        <span class="qty-num">${item.quantity}</span>
-                        <button class="qty-btn" onclick="updateQuantity(${item.id}, 1)">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
+        cartItemsList.innerHTML = cart.map(item => {
+            const liveProd = products.find(p => p.id === item.id);
+            const itemImg = liveProd ? liveProd.image : item.image;
+            const itemName = liveProd ? liveProd.name : item.name;
+            const itemPrice = liveProd ? liveProd.price : item.price;
+            return `
+                <div class="cart-item">
+                    <img src="${itemImg}" alt="${itemName}" class="cart-item-img" onerror="this.src='images/hero_snack.jpg'">
+                    <div class="cart-item-info">
+                        <h4 class="cart-item-title">${itemName}</h4>
+                        <p class="cart-item-price">${formatRupiah(itemPrice)}</p>
+                        <div class="cart-item-controls">
+                            <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">
+                                <i class="fa-solid fa-minus"></i>
+                            </button>
+                            <span class="qty-num">${item.quantity}</span>
+                            <button class="qty-btn" onclick="updateQuantity(${item.id}, 1)">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
+                    <button class="remove-item-btn" onclick="removeFromCart(${item.id})" aria-label="Hapus">
+                        <i class="fa-regular fa-trash-can"></i>
+                    </button>
                 </div>
-                <button class="remove-item-btn" onclick="removeFromCart(${item.id})" aria-label="Hapus">
-                    <i class="fa-regular fa-trash-can"></i>
-                </button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         cartSubtotalPrice.textContent = formatRupiah(totalPrice);
     }
+
 }
 
 // --- Helper: Format Currency ---
@@ -613,6 +670,48 @@ function resetDefaultCatalog() {
     }
 }
 
+// --- Helper: Compress & Resize Image File for LocalStorage ---
+function compressImageFile(file, maxDimension = 800, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = function(err) {
+                reject(err);
+            };
+            img.src = e.target.result;
+        };
+        reader.onerror = function(err) {
+            reject(err);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
 // Live Image URL Preview & File Upload Listener
 function initImageUploadHandlers() {
     const editImgInput = document.getElementById('edit-image');
@@ -626,17 +725,26 @@ function initImageUploadHandlers() {
     }
 
     if (editFileInput) {
-        editFileInput.addEventListener('change', (e) => {
+        editFileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const dataUrl = event.target.result;
+                try {
+                    showToast('Mengompres & memproses gambar...');
+                    const dataUrl = await compressImageFile(file, 800, 0.8);
                     if (editImgInput) editImgInput.value = dataUrl;
                     if (previewImg) previewImg.src = dataUrl;
-                    showToast('Gambar berhasil diunggah & siap disimpan!');
-                };
-                reader.readAsDataURL(file);
+                    showToast('Gambar berhasil diunggah & dioptimalkan!');
+                } catch (err) {
+                    console.error('Error compression:', err);
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const dataUrl = event.target.result;
+                        if (editImgInput) editImgInput.value = dataUrl;
+                        if (previewImg) previewImg.src = dataUrl;
+                        showToast('Gambar berhasil diunggah!');
+                    };
+                    reader.readAsDataURL(file);
+                }
             }
         });
     }
@@ -647,3 +755,4 @@ if (document.readyState === 'loading') {
 } else {
     initImageUploadHandlers();
 }
+
