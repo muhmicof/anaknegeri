@@ -1,72 +1,71 @@
 /* ==========================================================================
    ANAK NEGERI - INTERACTIVE JAVASCRIPT APPLICATION LOGIC & ADMIN STATE
+   Rewritten: product data now lives server-side (Upstash Redis via /api),
+   not in localStorage. This is what makes admin changes visible to every
+   visitor, on every device, instead of only the browser the admin used.
    ========================================================================== */
 
-// --- Default Seed Dataset ---
-const seedProducts = [
-    {
-        id: 1,
-        name: 'Keripik Ketela',
-        price: 25000,
-        category: 'keripik gurih',
-        tag: 'Favorit',
-        tagClass: '',
-        image: 'images/keripik_ketela.jpg'
-    },
-    {
-        id: 2,
-        name: 'Keripik Pisang',
-        price: 28000,
-        category: 'keripik manis',
-        tag: 'Best Seller',
-        tagClass: 'tag-gold',
-        image: 'images/keripik_pisang.jpg'
-    },
-    {
-        id: 3,
-        name: 'Keripik Talas',
-        price: 30000,
-        category: 'keripik gurih',
-        tag: '',
-        tagClass: '',
-        image: 'images/keripik_talas.jpg'
-    },
-    {
-        id: 4,
-        name: 'Peyek Kacang',
-        price: 22000,
-        category: 'peyek gurih',
-        tag: '',
-        tagClass: '',
-        image: 'images/peyek_kacang.jpg'
-    },
-    {
-        id: 5,
-        name: 'Kerupuk Bawang',
-        price: 20000,
-        category: 'gurih',
-        tag: '',
-        tagClass: '',
-        image: 'images/kerupuk_bawang.jpg'
-    }
-];
+// --- In-memory cache of the last-fetched product list ---
+// Replaces localStorage as the "current data" holder. Refetched from the
+// server after every mutation and on page load/visibility change.
+let productsCache = [];
 
-// --- Product Repository Manager ---
-function getProducts() {
-    const stored = localStorage.getItem('anak_negeri_products');
-    if (!stored) {
-        localStorage.setItem('anak_negeri_products', JSON.stringify(seedProducts));
-        return seedProducts;
-    }
+// --- Admin session token (replaces the old sessionStorage boolean flag) ---
+// Issued by POST /api/admin-login after the server verifies the password.
+// Sent as "Authorization: Bearer <token>" on every write request.
+function getAdminToken() {
+    return sessionStorage.getItem('admin_token');
+}
+function setAdminToken(token) {
+    sessionStorage.setItem('admin_token', token);
+}
+function clearAdminToken() {
+    sessionStorage.removeItem('admin_token');
+}
+
+// --- Product Repository: now thin wrappers around fetch() ---
+async function fetchProducts() {
     try {
-        return JSON.parse(stored);
+        const res = await fetch('/api/products', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Gagal memuat produk');
+        productsCache = await res.json();
+        return productsCache;
     } catch (e) {
-        return seedProducts;
+        console.error('Gagal mengambil data produk dari server:', e);
+        return productsCache; // fall back to whatever we last had
     }
 }
 
-function saveProducts(products) {
-    localStorage.setItem('anak_negeri_products', JSON.stringify(products));
+// Synchronous accessor for code that renders from the cache without
+// wanting to await a fetch every time (e.g. building cart line items).
+function getCachedProducts() {
+    return productsCache;
+}
+
+async function adminRequest(url, options = {}) {
+    const token = getAdminToken();
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+
+    if (res.status === 401) {
+        // Token missing/expired — force re-login instead of failing silently.
+        clearAdminToken();
+        checkAdminAuth();
+        throw new Error('Sesi admin berakhir, silakan login kembali.');
+    }
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Permintaan gagal.');
+    }
+
+    return res.status === 204 ? null : res.json();
 }
 
 // --- Visitor Counter System ---
@@ -76,15 +75,8 @@ async function renderVisitorStats() {
     if (!todayEl || !totalEl) return;
 
     try {
-        const response = await fetch('visitor-counter.php?ts=' + Date.now(), {
-            cache: 'no-store',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-
-        if (!response.ok) {
-            throw new Error('Request failed');
-        }
-
+        const response = await fetch('/api/visitor?ts=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) throw new Error('Request failed');
         const data = await response.json();
         todayEl.textContent = Number(data.today || 0).toLocaleString('id-ID');
         totalEl.textContent = Number(data.total || 0).toLocaleString('id-ID');
@@ -96,9 +88,10 @@ async function renderVisitorStats() {
 
 function initVisitorStatsAutoRefresh() {
     if (!document.getElementById('visitor-today-count') || !document.getElementById('visitor-total-count')) return;
-
     renderVisitorStats();
-    setInterval(renderVisitorStats, 5000);
+    // Every visit still increments the counter (GET /api/visitor increments).
+    // A repeating interval would inflate counts every 5s per open tab, so we
+    // only refresh on load/focus now instead of polling.
     window.addEventListener('focus', renderVisitorStats);
 }
 
@@ -118,23 +111,51 @@ const mobileToggle = document.getElementById('mobile-toggle');
 const navMenu = document.getElementById('nav-menu');
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initNavigation();
     initFilterTabs();
     initCartDrawer();
     initScrollHeader();
     initVisitorStatsAutoRefresh();
+    initCrossDeviceRefresh();
 
-    // Render Storefront if grid container exists
+    await fetchProducts();
+
     if (document.getElementById('product-grid')) {
         renderStorefrontProducts('all');
     }
 
-    // Render Admin Table & Check Auth if admin table exists
     if (document.getElementById('admin-product-tbody')) {
         checkAdminAuth();
     }
 });
+
+// --- Refresh product data periodically / on tab focus ---
+// Since data is now server-side and shared, "cross-tab sync" is replaced by
+// "refetch from server" — this is what actually makes admin edits visible
+// on OTHER devices, which localStorage's 'storage' event could never do.
+function initCrossDeviceRefresh() {
+    async function refresh() {
+        await fetchProducts();
+        if (document.getElementById('product-grid')) {
+            const activeTab = document.querySelector('.tab-btn.active');
+            const category = activeTab ? activeTab.getAttribute('data-category') : 'all';
+            renderStorefrontProducts(category);
+        }
+        if (document.getElementById('admin-product-tbody')) {
+            renderAdminTable();
+        }
+    }
+
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refresh();
+    });
+    window.addEventListener('focus', refresh);
+    // Light polling so the public storefront picks up admin changes without
+    // requiring a manual refresh. 30s is a reasonable balance for a small
+    // catalog; lower it if you need near-real-time updates.
+    setInterval(refresh, 30000);
+}
 
 // --- Scroll Header Effect ---
 function initScrollHeader() {
@@ -175,11 +196,13 @@ function renderStorefrontProducts(categoryFilter = 'all') {
     const productGrid = document.getElementById('product-grid');
     if (!productGrid) return;
 
-    const products = getProducts();
+    const products = getCachedProducts();
 
     const filtered = products.filter(p => {
+        if (!p) return false;
         if (categoryFilter === 'all') return true;
-        return p.category.includes(categoryFilter);
+        const categoryStr = p.category ? String(p.category).toLowerCase() : '';
+        return categoryStr.includes(String(categoryFilter).toLowerCase());
     });
 
     if (filtered.length === 0) {
@@ -249,27 +272,34 @@ function closeCart() {
 }
 
 // --- Add To Cart Handler ---
-function addToCart(id) {
-    const products = getProducts();
-    const targetProduct = products.find(p => p.id === id);
-    if (!targetProduct) return;
+function addToCart(id, name = null, price = null, image = null) {
+    const products = getCachedProducts();
+    const targetProduct = products.find(p => p && String(p.id) === String(id));
 
-    const existingItem = cart.find(item => item.id === id);
+    const itemToAdd = targetProduct || {
+        id: id,
+        name: name || 'Produk',
+        price: price || 0,
+        image: image || 'images/hero_snack.jpg'
+    };
+
+    const existingItem = cart.find(item => item && String(item.id) === String(id));
 
     if (existingItem) {
         existingItem.quantity += 1;
+        if (targetProduct) existingItem.image = targetProduct.image;
     } else {
         cart.push({
-            id: targetProduct.id,
-            name: targetProduct.name,
-            price: targetProduct.price,
-            image: targetProduct.image,
+            id: itemToAdd.id,
+            name: itemToAdd.name,
+            price: itemToAdd.price,
+            image: itemToAdd.image,
             quantity: 1
         });
     }
 
     updateCartUI();
-    showToast(`"${targetProduct.name}" ditambahkan ke keranjang!`);
+    showToast(`"${itemToAdd.name}" ditambahkan ke keranjang!`);
 }
 
 // --- Remove From Cart Handler ---
@@ -301,33 +331,41 @@ function updateCartUI() {
 
     cartBadge.textContent = totalItems;
 
+    const products = getCachedProducts();
+
     if (cart.length === 0) {
         emptyCartView.style.display = 'flex';
         cartItemsList.innerHTML = '';
         cartSubtotalPrice.textContent = 'Rp 0';
     } else {
         emptyCartView.style.display = 'none';
-        cartItemsList.innerHTML = cart.map(item => `
-            <div class="cart-item">
-                <img src="${item.image}" alt="${item.name}" class="cart-item-img" onerror="this.src='images/hero_snack.jpg'">
-                <div class="cart-item-info">
-                    <h4 class="cart-item-title">${item.name}</h4>
-                    <p class="cart-item-price">${formatRupiah(item.price)}</p>
-                    <div class="cart-item-controls">
-                        <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">
-                            <i class="fa-solid fa-minus"></i>
-                        </button>
-                        <span class="qty-num">${item.quantity}</span>
-                        <button class="qty-btn" onclick="updateQuantity(${item.id}, 1)">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
+        cartItemsList.innerHTML = cart.map(item => {
+            const liveProd = products.find(p => p && String(p.id) === String(item.id));
+            const itemImg = liveProd ? liveProd.image : item.image;
+            const itemName = liveProd ? liveProd.name : item.name;
+            const itemPrice = liveProd ? liveProd.price : item.price;
+            return `
+                <div class="cart-item">
+                    <img src="${itemImg}" alt="${itemName}" class="cart-item-img" onerror="this.src='images/hero_snack.jpg'">
+                    <div class="cart-item-info">
+                        <h4 class="cart-item-title">${itemName}</h4>
+                        <p class="cart-item-price">${formatRupiah(itemPrice)}</p>
+                        <div class="cart-item-controls">
+                            <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">
+                                <i class="fa-solid fa-minus"></i>
+                            </button>
+                            <span class="qty-num">${item.quantity}</span>
+                            <button class="qty-btn" onclick="updateQuantity(${item.id}, 1)">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
+                    <button class="remove-item-btn" onclick="removeFromCart(${item.id})" aria-label="Hapus">
+                        <i class="fa-regular fa-trash-can"></i>
+                    </button>
                 </div>
-                <button class="remove-item-btn" onclick="removeFromCart(${item.id})" aria-label="Hapus">
-                    <i class="fa-regular fa-trash-can"></i>
-                </button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         cartSubtotalPrice.textContent = formatRupiah(totalPrice);
     }
@@ -372,22 +410,22 @@ function handleCheckout() {
 
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const itemList = cart.map(i => `- ${i.name} (${i.quantity}x) = ${formatRupiah(i.price * i.quantity)}`).join('%0A');
-    
+
     const message = `Halo Anak Negeri! Saya ingin memesan kudapan berikut:%0A%0A${itemList}%0A%0ATotal Pembayaran: *${formatRupiah(total)}*%0A%0AMohon informasi kelanjutan pemesanannya. Terima kasih!`;
-    
+
     window.open(`https://wa.me/6285701515879?text=${message}`, '_blank');
 }
 
 // ==========================================================================
 // ADMIN AUTHENTICATION SYSTEM
 // ==========================================================================
-
-const ADMIN_DEFAULT_PASSWORD = 'admin123';
+// Password is verified server-side now (see api/admin-login.js). The client
+// only ever sees a short-lived signed token, never the real password.
 
 function checkAdminAuth() {
     const loginOverlay = document.getElementById('admin-login-overlay');
     const logoutBtn = document.getElementById('admin-logout-btn');
-    const isAuthenticated = sessionStorage.getItem('admin_authenticated') === 'true';
+    const isAuthenticated = !!getAdminToken();
 
     if (isAuthenticated) {
         if (loginOverlay) loginOverlay.classList.remove('active');
@@ -405,7 +443,7 @@ function checkAdminAuth() {
     }
 }
 
-function handleAdminLogin(event) {
+async function handleAdminLogin(event) {
     event.preventDefault();
     const pwdInput = document.getElementById('admin-password-input');
     const errorMsg = document.getElementById('login-error-msg');
@@ -415,13 +453,25 @@ function handleAdminLogin(event) {
 
     const enteredPassword = pwdInput.value.trim();
 
-    if (enteredPassword === ADMIN_DEFAULT_PASSWORD) {
-        sessionStorage.setItem('admin_authenticated', 'true');
-        if (errorMsg) errorMsg.classList.remove('active');
-        pwdInput.value = '';
-        checkAdminAuth();
-        showToast('Berhasil masuk ke Admin Panel!');
-    } else {
+    try {
+        const res = await fetch('/api/admin-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: enteredPassword })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.token) {
+            setAdminToken(data.token);
+            if (errorMsg) errorMsg.classList.remove('active');
+            pwdInput.value = '';
+            checkAdminAuth();
+            showToast('Berhasil masuk ke Admin Panel!');
+            return;
+        }
+
+        throw new Error(data.error || 'Password salah.');
+    } catch (err) {
         if (errorMsg) errorMsg.classList.add('active');
         if (loginCard) {
             loginCard.classList.remove('shake-anim');
@@ -433,7 +483,7 @@ function handleAdminLogin(event) {
 }
 
 function handleAdminLogout() {
-    sessionStorage.removeItem('admin_authenticated');
+    clearAdminToken();
     showToast('Anda telah keluar dari Admin Panel.');
     checkAdminAuth();
 }
@@ -462,13 +512,14 @@ function togglePasswordVisibility(inputId, btn) {
 // ADMIN DASHBOARD FUNCTIONS
 // ==========================================================================
 
-function renderAdminTable() {
+async function renderAdminTable() {
     const tbody = document.getElementById('admin-product-tbody');
     if (!tbody) return;
 
-    const products = getProducts();
+    await fetchProducts();
+    const products = getCachedProducts();
 
-    if (products.length === 0) {
+    if (!Array.isArray(products) || products.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" style="text-align: center; padding: 30px; color: var(--color-text-muted);">
@@ -510,8 +561,8 @@ function openEditModal(id = null) {
     if (!modal || !form) return;
 
     if (id !== null) {
-        const products = getProducts();
-        const product = products.find(p => p.id === id);
+        const products = getCachedProducts();
+        const product = products.find(p => p && String(p.id) === String(id));
         if (!product) return;
 
         modalTitle.textContent = 'Edit Produk: ' + product.name;
@@ -538,7 +589,7 @@ function closeProductModal() {
     if (modal) modal.classList.remove('active');
 }
 
-function saveProductFromForm(event) {
+async function saveProductFromForm(event) {
     event.preventDefault();
     const idVal = document.getElementById('edit-product-id').value;
     const name = document.getElementById('edit-name').value.trim();
@@ -552,65 +603,102 @@ function saveProductFromForm(event) {
         return;
     }
 
-    let products = getProducts();
+    const payload = { name, price, category, tag, image };
 
-    if (idVal) {
-        // Edit existing
-        const id = parseInt(idVal, 10);
-        products = products.map(p => {
-            if (p.id === id) {
-                return {
-                    ...p,
-                    name: name,
-                    price: price,
-                    category: category,
-                    tag: tag,
-                    tagClass: tag.toLowerCase().includes('best') ? 'tag-gold' : '',
-                    image: image
-                };
-            }
-            return p;
-        });
-        showToast(`Produk "${name}" berhasil diperbarui!`);
-    } else {
-        // Add new product
-        const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
-        products.push({
-            id: newId,
-            name: name,
-            price: price,
-            category: category,
-            tag: tag,
-            tagClass: tag.toLowerCase().includes('best') ? 'tag-gold' : '',
-            image: image
-        });
-        showToast(`Produk baru "${name}" berhasil ditambahkan!`);
+    try {
+        if (idVal) {
+            await adminRequest(`/api/products?id=${encodeURIComponent(idVal)}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+            });
+            showToast(`Produk "${name}" berhasil diperbarui!`);
+        } else {
+            await adminRequest('/api/products', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            showToast(`Produk baru "${name}" berhasil ditambahkan!`);
+        }
+
+        closeProductModal();
+        await renderAdminTable();
+    } catch (err) {
+        alert(err.message || 'Gagal menyimpan produk. Coba lagi.');
     }
-
-    saveProducts(products);
-    closeProductModal();
-    renderAdminTable();
 }
 
-function deleteProduct(id) {
-    const products = getProducts();
-    const product = products.find(p => p.id === id);
+async function deleteProduct(id) {
+    const products = getCachedProducts();
+    const product = products.find(p => p && String(p.id) === String(id));
     if (!product) return;
 
-    if (confirm(`Apakah Anda yakin ingin menghapus "${product.name}"?`)) {
-        const updated = products.filter(p => p.id !== id);
-        saveProducts(updated);
-        renderAdminTable();
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${product.name}"?`)) return;
+
+    try {
+        await adminRequest(`/api/products?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await renderAdminTable();
         showToast(`Produk "${product.name}" telah dihapus.`);
+    } catch (err) {
+        alert(err.message || 'Gagal menghapus produk. Coba lagi.');
     }
 }
 
-function resetDefaultCatalog() {
-    if (confirm('Apakah Anda yakin ingin mengembalikan daftar produk ke data awal?')) {
-        localStorage.setItem('anak_negeri_products', JSON.stringify(seedProducts));
-        renderAdminTable();
+async function resetDefaultCatalog() {
+    if (!confirm('Apakah Anda yakin ingin mengembalikan daftar produk ke data awal?')) return;
+
+    try {
+        await adminRequest('/api/products?action=reset', { method: 'POST', body: '{}' });
+        await renderAdminTable();
         showToast('Katalog produk berhasil di-reset ke data bawaan.');
+    } catch (err) {
+        alert(err.message || 'Gagal me-reset katalog. Coba lagi.');
     }
+}
+
+// --- Helper: Compress & Resize Image File before sending to server ---
+// Still worth doing client-side: shrinks payload size before it goes over
+// the network and into Redis. Long-term, swap this for real file upload to
+// Vercel Blob Storage instead of storing base64 strings — ask if you want
+// that wired up next; base64-in-Redis works but is not the efficient path.
+function compressImageFile(file, maxDimension = 800, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const img = new Image();
+            img.onload = function () {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = function (err) {
+                reject(err);
+            };
+            img.src = e.target.result;
+        };
+        reader.onerror = function (err) {
+            reject(err);
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 // Live Image URL Preview & File Upload Listener
@@ -626,17 +714,26 @@ function initImageUploadHandlers() {
     }
 
     if (editFileInput) {
-        editFileInput.addEventListener('change', (e) => {
+        editFileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const dataUrl = event.target.result;
+                try {
+                    showToast('Mengompres & memproses gambar...');
+                    const dataUrl = await compressImageFile(file, 800, 0.8);
                     if (editImgInput) editImgInput.value = dataUrl;
                     if (previewImg) previewImg.src = dataUrl;
-                    showToast('Gambar berhasil diunggah & siap disimpan!');
-                };
-                reader.readAsDataURL(file);
+                    showToast('Gambar berhasil diunggah & dioptimalkan!');
+                } catch (err) {
+                    console.error('Error compression:', err);
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        const dataUrl = event.target.result;
+                        if (editImgInput) editImgInput.value = dataUrl;
+                        if (previewImg) previewImg.src = dataUrl;
+                        showToast('Gambar berhasil diunggah!');
+                    };
+                    reader.readAsDataURL(file);
+                }
             }
         });
     }
