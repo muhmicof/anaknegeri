@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
         // Diset langsung di sini atas permintaan — perhatikan: kalau repo ini
         // PUBLIC di GitHub, siapa saja bisa baca password ini dari source code.
         // Ganti ke env var (process.env.ADMIN_PASSWORD) kalau repo public.
-        const adminPassword = 'GANTI_PASSWORD_INI';
+        const adminPassword = 'admin123';
 
         if (password === adminPassword) {
             const token = signToken('admin');
