@@ -53,14 +53,23 @@ const seedProducts = [
 
 // --- Product Repository Manager ---
 function getProducts() {
-    const stored = localStorage.getItem('anak_negeri_products');
-    if (!stored) {
-        localStorage.setItem('anak_negeri_products', JSON.stringify(seedProducts));
-        return seedProducts;
-    }
     try {
-        return JSON.parse(stored);
+        const stored = localStorage.getItem('anak_negeri_products');
+        if (!stored) {
+            try {
+                localStorage.setItem('anak_negeri_products', JSON.stringify(seedProducts));
+            } catch (e) {
+                console.warn('Gagal menyimpan seed ke LocalStorage:', e);
+            }
+            return seedProducts;
+        }
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+        }
+        return seedProducts;
     } catch (e) {
+        console.warn('Gagal mengambil/membaca data produk dari LocalStorage, menggunakan seed default:', e);
         return seedProducts;
     }
 }
@@ -217,8 +226,10 @@ function renderStorefrontProducts(categoryFilter = 'all') {
     const products = getProducts();
 
     const filtered = products.filter(p => {
+        if (!p) return false;
         if (categoryFilter === 'all') return true;
-        return p.category.includes(categoryFilter);
+        const categoryStr = p.category ? String(p.category).toLowerCase() : '';
+        return categoryStr.includes(String(categoryFilter).toLowerCase());
     });
 
     if (filtered.length === 0) {
@@ -291,7 +302,7 @@ function closeCart() {
 // --- Add To Cart Handler ---
 function addToCart(id, name = null, price = null, image = null) {
     const products = getProducts();
-    const targetProduct = products.find(p => p.id === id);
+    const targetProduct = products.find(p => p && String(p.id) === String(id));
 
     const itemToAdd = targetProduct || {
         id: id,
@@ -300,7 +311,7 @@ function addToCart(id, name = null, price = null, image = null) {
         image: image || 'images/hero_snack.jpg'
     };
 
-    const existingItem = cart.find(item => item.id === id);
+    const existingItem = cart.find(item => item && String(item.id) === String(id));
 
     if (existingItem) {
         existingItem.quantity += 1;
@@ -358,7 +369,7 @@ function updateCartUI() {
     } else {
         emptyCartView.style.display = 'none';
         cartItemsList.innerHTML = cart.map(item => {
-            const liveProd = products.find(p => p.id === item.id);
+            const liveProd = products.find(p => p && String(p.id) === String(item.id));
             const itemImg = liveProd ? liveProd.image : item.image;
             const itemName = liveProd ? liveProd.name : item.name;
             const itemPrice = liveProd ? liveProd.price : item.price;
@@ -525,7 +536,7 @@ function renderAdminTable() {
 
     const products = getProducts();
 
-    if (products.length === 0) {
+    if (!Array.isArray(products) || products.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" style="text-align: center; padding: 30px; color: var(--color-text-muted);">
@@ -568,7 +579,7 @@ function openEditModal(id = null) {
 
     if (id !== null) {
         const products = getProducts();
-        const product = products.find(p => p.id === id);
+        const product = products.find(p => p && String(p.id) === String(id));
         if (!product) return;
 
         modalTitle.textContent = 'Edit Produk: ' + product.name;
@@ -615,7 +626,7 @@ function saveProductFromForm(event) {
         // Edit existing
         const id = parseInt(idVal, 10);
         products = products.map(p => {
-            if (p.id === id) {
+            if (p && String(p.id) === String(id)) {
                 return {
                     ...p,
                     name: name,
@@ -651,11 +662,11 @@ function saveProductFromForm(event) {
 
 function deleteProduct(id) {
     const products = getProducts();
-    const product = products.find(p => p.id === id);
+    const product = products.find(p => p && String(p.id) === String(id));
     if (!product) return;
 
     if (confirm(`Apakah Anda yakin ingin menghapus "${product.name}"?`)) {
-        const updated = products.filter(p => p.id !== id);
+        const updated = products.filter(p => p && String(p.id) !== String(id));
         saveProducts(updated);
         renderAdminTable();
         showToast(`Produk "${product.name}" telah dihapus.`);
