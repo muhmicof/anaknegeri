@@ -15,12 +15,10 @@ module.exports = async (req, res) => {
 
     try {
         const { password } = req.body || {};
-        const adminPassword = process.env.ADMIN_PASSWORD;
-
-        if (!adminPassword) {
-            console.error('ADMIN_PASSWORD env var is not set on the server.');
-            return res.status(500).json({ error: 'Konfigurasi admin belum lengkap di server.' });
-        }
+        // Diset langsung di sini atas permintaan — perhatikan: kalau repo ini
+        // PUBLIC di GitHub, siapa saja bisa baca password ini dari source code.
+        // Ganti ke env var (process.env.ADMIN_PASSWORD) kalau repo public.
+        const adminPassword = 'GANTI_PASSWORD_INI';
 
         if (password === adminPassword) {
             const token = signToken('admin');
