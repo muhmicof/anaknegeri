@@ -1,12 +1,11 @@
 // api/admin-login.js
-// Verifies the admin password on the SERVER instead of in client-side JS.
-// The old code had ADMIN_DEFAULT_PASSWORD = 'admin123' sitting in app.js,
-// readable by anyone who opens DevTools. This fixes that: the real password
-// lives only in a Vercel environment variable, never shipped to the browser.
+// Verifies the admin password on the SERVER, never in client-side JS.
+// Unchanged from the Redis version except the import path — this file
+// doesn't touch the database at all, only signs a token.
 //
 // POST /api/admin-login  { password: "..." }  -> { token: "..." } | 401
 
-const { signToken, setCors } = require('../lib/kv');
+const { signToken, setCors } = require('../lib/db');
 
 module.exports = async (req, res) => {
     setCors(res);

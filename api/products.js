@@ -1,35 +1,37 @@
 // api/products.js
-// Single source of truth for product data, shared by every visitor and every device.
-// Replaces the old localStorage-based getProducts()/saveProducts() in app.js.
+// Product data lives in Supabase Postgres now (table: products).
+// Same API contract as the Redis version — app.js on the frontend doesn't
+// need to change at all.
 //
-// GET    /api/products            -> public, returns the product array
-// POST   /api/products            -> admin only, adds a new product
-// PUT    /api/products?id=3       -> admin only, updates a product
-// DELETE /api/products?id=3       -> admin only, deletes a product
+// GET    /api/products              -> public, returns all products
+// POST   /api/products              -> admin only, adds a new product
+// PUT    /api/products?id=3         -> admin only, updates a product
+// DELETE /api/products?id=3         -> admin only, deletes a product
 // POST   /api/products?action=reset -> admin only, resets to seed catalog
 
-const { redis, requireAdmin, setCors } = require('../lib/kv');
-
-const PRODUCTS_KEY = 'anak_negeri:products';
+const { supabase, requireAdmin, setCors } = require('../lib/db');
 
 const seedProducts = [
-    { id: 1, name: 'Keripik Ketela', price: 25000, category: 'keripik gurih', tag: 'Favorit', tagClass: '', image: 'images/keripik_ketela.jpg' },
-    { id: 2, name: 'Keripik Pisang', price: 28000, category: 'keripik manis', tag: 'Best Seller', tagClass: 'tag-gold', image: 'images/keripik_pisang.jpg' },
-    { id: 3, name: 'Keripik Talas', price: 30000, category: 'keripik gurih', tag: '', tagClass: '', image: 'images/keripik_talas.jpg' },
-    { id: 4, name: 'Peyek Kacang', price: 22000, category: 'peyek gurih', tag: '', tagClass: '', image: 'images/peyek_kacang.jpg' },
-    { id: 5, name: 'Kerupuk Bawang', price: 20000, category: 'gurih', tag: '', tagClass: '', image: 'images/kerupuk_bawang.jpg' }
+    { name: 'Keripik Ketela', price: 25000, category: 'keripik gurih', tag: 'Favorit', tag_class: '', image: 'images/keripik_ketela.jpg' },
+    { name: 'Keripik Pisang', price: 28000, category: 'keripik manis', tag: 'Best Seller', tag_class: 'tag-gold', image: 'images/keripik_pisang.jpg' },
+    { name: 'Keripik Talas', price: 30000, category: 'keripik gurih', tag: '', tag_class: '', image: 'images/keripik_talas.jpg' },
+    { name: 'Peyek Kacang', price: 22000, category: 'peyek gurih', tag: '', tag_class: '', image: 'images/peyek_kacang.jpg' },
+    { name: 'Kerupuk Bawang', price: 20000, category: 'gurih', tag: '', tag_class: '', image: 'images/kerupuk_bawang.jpg' }
 ];
 
-async function getProducts() {
-    const stored = await redis.get(PRODUCTS_KEY);
-    if (Array.isArray(stored) && stored.length > 0) return stored;
-    // First run ever: seed it so the store isn't empty.
-    await redis.set(PRODUCTS_KEY, seedProducts);
-    return seedProducts;
-}
-
-async function saveProducts(products) {
-    await redis.set(PRODUCTS_KEY, products);
+// Postgres column is tag_class (snake_case, Postgres convention), but the
+// frontend expects tagClass (camelCase, JS convention). Convert at the
+// boundary so app.js never has to know the database's naming style.
+function toClientShape(row) {
+    return {
+        id: row.id,
+        name: row.name,
+        price: row.price,
+        category: row.category,
+        tag: row.tag,
+        tagClass: row.tag_class,
+        image: row.image
+    };
 }
 
 module.exports = async (req, res) => {
@@ -38,19 +40,34 @@ module.exports = async (req, res) => {
 
     try {
         if (req.method === 'GET') {
-            const products = await getProducts();
-            return res.status(200).json(products);
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .order('id', { ascending: true });
+
+            if (error) throw error;
+            return res.status(200).json(data.map(toClientShape));
         }
 
-        // Everything below mutates data -> must be admin.
         if (!requireAdmin(req)) {
             return res.status(401).json({ error: 'Unauthorized. Silakan login ulang sebagai admin.' });
         }
 
         if (req.method === 'POST') {
             if (req.query.action === 'reset') {
-                await saveProducts(seedProducts);
-                return res.status(200).json(seedProducts);
+                const { error: deleteError } = await supabase
+                    .from('products')
+                    .delete()
+                    .gte('id', 0); // delete all rows
+                if (deleteError) throw deleteError;
+
+                const { data, error: insertError } = await supabase
+                    .from('products')
+                    .insert(seedProducts)
+                    .select();
+                if (insertError) throw insertError;
+
+                return res.status(200).json(data.map(toClientShape));
             }
 
             const body = req.body || {};
@@ -59,20 +76,22 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Nama dan harga produk wajib diisi dengan benar.' });
             }
 
-            const products = await getProducts();
-            const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
-            const newProduct = {
-                id: newId,
-                name: String(name).trim(),
-                price: Math.round(price),
-                category: category || 'gurih',
-                tag: tag || '',
-                tagClass: (tag || '').toLowerCase().includes('best') ? 'tag-gold' : '',
-                image: image || 'images/hero_snack.jpg'
-            };
-            products.push(newProduct);
-            await saveProducts(products);
-            return res.status(201).json(newProduct);
+            const tagClass = (tag || '').toLowerCase().includes('best') ? 'tag-gold' : '';
+            const { data, error } = await supabase
+                .from('products')
+                .insert({
+                    name: String(name).trim(),
+                    price: Math.round(price),
+                    category: category || 'gurih',
+                    tag: tag || '',
+                    tag_class: tagClass,
+                    image: image || 'images/hero_snack.jpg'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return res.status(201).json(toClientShape(data));
         }
 
         if (req.method === 'PUT') {
@@ -80,35 +99,41 @@ module.exports = async (req, res) => {
             if (isNaN(id)) return res.status(400).json({ error: 'ID produk tidak valid.' });
 
             const body = req.body || {};
-            const products = await getProducts();
-            const idx = products.findIndex(p => p.id === id);
-            if (idx === -1) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+            const updates = {};
+            if (body.name !== undefined) updates.name = String(body.name).trim();
+            if (body.price !== undefined) updates.price = Math.round(Number(body.price));
+            if (body.category !== undefined) updates.category = body.category;
+            if (body.tag !== undefined) {
+                updates.tag = body.tag;
+                updates.tag_class = (body.tag || '').toLowerCase().includes('best') ? 'tag-gold' : '';
+            }
+            if (body.image !== undefined) updates.image = body.image;
 
-            const tag = body.tag !== undefined ? body.tag : products[idx].tag;
-            products[idx] = {
-                ...products[idx],
-                name: body.name !== undefined ? String(body.name).trim() : products[idx].name,
-                price: body.price !== undefined ? Math.round(Number(body.price)) : products[idx].price,
-                category: body.category !== undefined ? body.category : products[idx].category,
-                tag: tag,
-                tagClass: (tag || '').toLowerCase().includes('best') ? 'tag-gold' : '',
-                image: body.image !== undefined ? body.image : products[idx].image
-            };
+            const { data, error } = await supabase
+                .from('products')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single();
 
-            await saveProducts(products);
-            return res.status(200).json(products[idx]);
+            if (error) {
+                if (error.code === 'PGRST116') return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+                throw error;
+            }
+            return res.status(200).json(toClientShape(data));
         }
 
         if (req.method === 'DELETE') {
             const id = parseInt(req.query.id, 10);
             if (isNaN(id)) return res.status(400).json({ error: 'ID produk tidak valid.' });
 
-            const products = await getProducts();
-            const exists = products.some(p => p.id === id);
-            if (!exists) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
+            const { error, count } = await supabase
+                .from('products')
+                .delete({ count: 'exact' })
+                .eq('id', id);
 
-            const updated = products.filter(p => p.id !== id);
-            await saveProducts(updated);
+            if (error) throw error;
+            if (count === 0) return res.status(404).json({ error: 'Produk tidak ditemukan.' });
             return res.status(200).json({ success: true });
         }
 
